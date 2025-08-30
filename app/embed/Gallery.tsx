@@ -34,7 +34,6 @@ export default function Gallery({ items }: { items: Item[] }) {
     setSlideIdx((s) => (s - 1 + imgs.length) % imgs.length);
   }, [items, postIdx]);
 
-  // keyboard: ESC / arrows
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -89,7 +88,6 @@ export default function Gallery({ items }: { items: Item[] }) {
                   }}
                 />
               )}
-              {/* tiny carousel indicator */}
               {item.images.length > 1 && (
                 <div
                   style={{
@@ -112,7 +110,7 @@ export default function Gallery({ items }: { items: Item[] }) {
         })}
       </div>
 
-      {/* Modal / Lightbox */}
+      {/* Modal */}
       {open && (
         <div
           onClick={closeModal}
@@ -127,7 +125,6 @@ export default function Gallery({ items }: { items: Item[] }) {
             zIndex: 9999,
           }}
         >
-          {/* Content column: image area + caption below */}
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -140,7 +137,7 @@ export default function Gallery({ items }: { items: Item[] }) {
               flexDirection: "column",
             }}
           >
-            {/* Image area */}
+            {/* Image */}
             <div style={{ position: "relative", flex: 1 }}>
               <img
                 src={items[postIdx].images[slideIdx]}
@@ -155,7 +152,6 @@ export default function Gallery({ items }: { items: Item[] }) {
                 }}
               />
 
-              {/* Left arrow */}
               {items[postIdx].images.length > 1 && (
                 <button
                   onClick={prevSlide}
@@ -165,8 +161,6 @@ export default function Gallery({ items }: { items: Item[] }) {
                   ‹
                 </button>
               )}
-
-              {/* Right arrow */}
               {items[postIdx].images.length > 1 && (
                 <button
                   onClick={nextSlide}
@@ -176,8 +170,6 @@ export default function Gallery({ items }: { items: Item[] }) {
                   ›
                 </button>
               )}
-
-              {/* Close */}
               <button
                 onClick={closeModal}
                 aria-label="Close"
@@ -197,8 +189,6 @@ export default function Gallery({ items }: { items: Item[] }) {
               >
                 ✕
               </button>
-
-              {/* Dots */}
               {items[postIdx].images.length > 1 && (
                 <div
                   style={{
@@ -228,8 +218,8 @@ export default function Gallery({ items }: { items: Item[] }) {
               )}
             </div>
 
-            {/* Caption area (IG-like, minimal) */}
-            {(items[postIdx].title || items[postIdx].alt || items[postIdx].link) && (
+            {/* Alt caption only */}
+            {items[postIdx].alt && (
               <div
                 style={{
                   padding: "12px 14px",
@@ -239,24 +229,7 @@ export default function Gallery({ items }: { items: Item[] }) {
                   borderTop: "1px solid rgba(255,255,255,0.12)",
                 }}
               >
-                {items[postIdx].title && (
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                    {items[postIdx].title}
-                  </div>
-                )}
-                {items[postIdx].alt && <div>{items[postIdx].alt}</div>}
-                {items[postIdx].link && (
-                  <div style={{ marginTop: 6 }}>
-                    <a
-                      href={items[postIdx].link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: "#93c5fd", textDecoration: "underline" }}
-                    >
-                      Open link
-                    </a>
-                  </div>
-                )}
+                {items[postIdx].alt}
               </div>
             )}
           </div>
