@@ -1,4 +1,4 @@
-import { getGalleryItems } from "@/lib/notion";
+import { getGalleryItems } from "../../lib/notion";
 
 export default async function Embed() {
   const items = await getGalleryItems();
