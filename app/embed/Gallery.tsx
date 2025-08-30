@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 
+type Media = { type: "image" | "video"; url: string };
 type Item = {
   id: string;
   title: string;
   link: string | null;
-  images: string[];
   alt: string | null;
+  media: Media[];
 };
 
 export default function Gallery({ items }: { items: Item[] }) {
@@ -23,17 +24,18 @@ export default function Gallery({ items }: { items: Item[] }) {
   const closeModal = () => setOpen(false);
 
   const nextSlide = useCallback(() => {
-    const imgs = items[postIdx]?.images ?? [];
-    if (!imgs.length) return;
-    setSlideIdx((s) => (s + 1) % imgs.length);
+    const m = items[postIdx]?.media ?? [];
+    if (!m.length) return;
+    setSlideIdx((s) => (s + 1) % m.length);
   }, [items, postIdx]);
 
   const prevSlide = useCallback(() => {
-    const imgs = items[postIdx]?.images ?? [];
-    if (!imgs.length) return;
-    setSlideIdx((s) => (s - 1 + imgs.length) % imgs.length);
+    const m = items[postIdx]?.media ?? [];
+    if (!m.length) return;
+    setSlideIdx((s) => (s - 1 + m.length) % m.length);
   }, [items, postIdx]);
 
+  // keyboard shortcuts
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -57,7 +59,7 @@ export default function Gallery({ items }: { items: Item[] }) {
         }}
       >
         {items.map((item, i) => {
-          const thumb = item.images[0] || null;
+          const first = item.media[0];
           const tile = (
             <div
               key={item.id}
@@ -73,26 +75,62 @@ export default function Gallery({ items }: { items: Item[] }) {
               title={item.title}
               aria-label={item.title}
             >
-              {thumb && (
-                <img
-                  src={thumb}
-                  alt={item.title || "Gallery image"}
-                  loading="lazy"
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-              )}
-              {item.images.length > 1 && (
+              {first ? (
+                first.type === "image" ? (
+                  <img
+                    src={first.url}
+                    alt={item.title || "Gallery image"}
+                    loading="lazy"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <>
+                    <video
+                      src={first.url}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                        background: "black",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 6,
+                        top: 6,
+                        fontSize: 12,
+                        background: "rgba(0,0,0,0.6)",
+                        color: "white",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      ▶ video
+                    </div>
+                  </>
+                )
+              ) : null}
+
+              {/* tiny carousel indicator if multiple */}
+              {item.media.length > 1 && (
                 <div
                   style={{
                     position: "absolute",
-                    right: 6,
+                    left: 6,
                     top: 6,
                     fontSize: 12,
                     background: "rgba(0,0,0,0.6)",
@@ -101,16 +139,17 @@ export default function Gallery({ items }: { items: Item[] }) {
                     borderRadius: 4,
                   }}
                 >
-                  {item.images.length} ▶
+                  {item.media.length} ▶
                 </div>
               )}
             </div>
           );
+
           return <span key={item.id} style={{ display: "block" }}>{tile}</span>;
         })}
       </div>
 
-      {/* Modal */}
+      {/* Modal / Lightbox */}
       {open && (
         <div
           onClick={closeModal}
@@ -137,39 +176,52 @@ export default function Gallery({ items }: { items: Item[] }) {
               flexDirection: "column",
             }}
           >
-            {/* Image */}
+            {/* Media area */}
             <div style={{ position: "relative", flex: 1 }}>
-              <img
-                src={items[postIdx].images[slideIdx]}
-                alt={items[postIdx].title || "Image"}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  background: "black",
-                }}
-              />
+              {items[postIdx].media[slideIdx]?.type === "video" ? (
+                <video
+                  key={items[postIdx].media[slideIdx].url} // reset playback when slide changes
+                  src={items[postIdx].media[slideIdx].url}
+                  controls
+                  autoPlay
+                  playsInline
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    background: "black",
+                  }}
+                />
+              ) : (
+                <img
+                  src={items[postIdx].media[slideIdx]?.url}
+                  alt={items[postIdx].title || "Image"}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    background: "black",
+                  }}
+                />
+              )}
 
-              {items[postIdx].images.length > 1 && (
-                <button
-                  onClick={prevSlide}
-                  aria-label="Previous image"
-                  style={arrowStyle("left")}
-                >
-                  ‹
-                </button>
+              {/* Arrows */}
+              {items[postIdx].media.length > 1 && (
+                <>
+                  <button onClick={prevSlide} aria-label="Previous image" style={arrowStyle("left")}>
+                    ‹
+                  </button>
+                  <button onClick={nextSlide} aria-label="Next image" style={arrowStyle("right")}>
+                    ›
+                  </button>
+                </>
               )}
-              {items[postIdx].images.length > 1 && (
-                <button
-                  onClick={nextSlide}
-                  aria-label="Next image"
-                  style={arrowStyle("right")}
-                >
-                  ›
-                </button>
-              )}
+
+              {/* Close */}
               <button
                 onClick={closeModal}
                 aria-label="Close"
@@ -189,7 +241,9 @@ export default function Gallery({ items }: { items: Item[] }) {
               >
                 ✕
               </button>
-              {items[postIdx].images.length > 1 && (
+
+              {/* Dots */}
+              {items[postIdx].media.length > 1 && (
                 <div
                   style={{
                     position: "absolute",
@@ -200,7 +254,7 @@ export default function Gallery({ items }: { items: Item[] }) {
                     gap: 6,
                   }}
                 >
-                  {items[postIdx].images.map((_, idx) => (
+                  {items[postIdx].media.map((_, idx) => (
                     <span
                       key={idx}
                       onClick={() => setSlideIdx(idx)}
@@ -208,8 +262,7 @@ export default function Gallery({ items }: { items: Item[] }) {
                         width: 8,
                         height: 8,
                         borderRadius: 999,
-                        background:
-                          idx === slideIdx ? "white" : "rgba(255,255,255,0.4)",
+                        background: idx === slideIdx ? "white" : "rgba(255,255,255,0.4)",
                         cursor: "pointer",
                       }}
                     />
