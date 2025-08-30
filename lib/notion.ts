@@ -12,7 +12,8 @@ export async function getGalleryItems() {
       property: "Visible",
       checkbox: { equals: true },
     },
-    sorts: [{ property: "Order", direction: "ascending" }],
+sorts: [{ property: "Order", direction: "descending" }],
+
   });
 
   return res.results.map((page: any) => {
