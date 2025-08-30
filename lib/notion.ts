@@ -12,8 +12,10 @@ export async function getGalleryItems() {
       property: "Visible",
       checkbox: { equals: true },
     },
-sorts: [{ property: "Order", direction: "descending" }],
-
+    sorts: [
+      { property: "Pin", direction: "descending" },     // ✅ pinned items first
+      { property: "Order", direction: "descending" },   // then highest Order → lowest
+    ],
   });
 
   return res.results.map((page: any) => {
@@ -24,7 +26,7 @@ sorts: [{ property: "Order", direction: "descending" }],
       page.properties?.Media?.files?.[0]?.external?.url ||
       null;
     const link = page.properties?.Link?.url || null;
+
     return { id: page.id, title, image, link };
   });
 }
-
