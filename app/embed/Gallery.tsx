@@ -6,7 +6,8 @@ type Item = {
   id: string;
   title: string;
   link: string | null;
-  images: string[]; // first image = thumbnail
+  images: string[];
+  alt: string | null; // <-- new
 };
 
 export default function Gallery({ items }: { items: Item[] }) {
@@ -33,7 +34,7 @@ export default function Gallery({ items }: { items: Item[] }) {
     setSlideIdx((s) => (s - 1 + imgs.length) % imgs.length);
   }, [items, postIdx]);
 
-  // keyboard: ESC to close, arrows to navigate
+  // keyboard: ESC / arrows
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -88,7 +89,7 @@ export default function Gallery({ items }: { items: Item[] }) {
                   }}
                 />
               )}
-              {/* tiny carousel indicator if multiple */}
+              {/* tiny carousel indicator */}
               {item.images.length > 1 && (
                 <div
                   style={{
@@ -107,13 +108,7 @@ export default function Gallery({ items }: { items: Item[] }) {
               )}
             </div>
           );
-
-          // keep links open on click-hold (long press), but click opens modal
-          return item.link ? (
-            <span key={item.id} style={{ display: "block" }}>{tile}</span>
-          ) : (
-            tile
-          );
+          return <span key={item.id} style={{ display: "block" }}>{tile}</span>;
         })}
       </div>
 
@@ -132,99 +127,136 @@ export default function Gallery({ items }: { items: Item[] }) {
             zIndex: 9999,
           }}
         >
+          {/* Content column: image area (flex:1) + caption area below */}
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
               position: "relative",
               width: "min(90vw, 900px)",
-              height: "min(90vh, 90vw * 1.25)", // roomy box ~4:5
+              height: "min(90vh, 90vw * 1.25)",
               background: "black",
               overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            {/* Image */}
-            <img
-              src={items[postIdx].images[slideIdx]}
-              alt={items[postIdx].title || "Image"}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                background: "black",
-              }}
-            />
-
-            {/* Left arrow */}
-            {items[postIdx].images.length > 1 && (
-              <button
-                onClick={prevSlide}
-                aria-label="Previous image"
-                style={arrowStyle("left")}
-              >
-                ‹
-              </button>
-            )}
-
-            {/* Right arrow */}
-            {items[postIdx].images.length > 1 && (
-              <button
-                onClick={nextSlide}
-                aria-label="Next image"
-                style={arrowStyle("right")}
-              >
-                ›
-              </button>
-            )}
-
-            {/* Close */}
-            <button
-              onClick={closeModal}
-              aria-label="Close"
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                border: "none",
-                background: "rgba(0,0,0,0.6)",
-                color: "white",
-                width: 32,
-                height: 32,
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 18,
-              }}
-            >
-              ✕
-            </button>
-
-            {/* Dots */}
-            {items[postIdx].images.length > 1 && (
-              <div
+            {/* Image area */}
+            <div style={{ position: "relative", flex: 1 }}>
+              <img
+                src={items[postIdx].images[slideIdx]}
+                alt={items[postIdx].title || "Image"}
                 style={{
                   position: "absolute",
-                  bottom: 10,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  display: "flex",
-                  gap: 6,
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  background: "black",
+                }}
+              />
+
+              {/* Left arrow */}
+              {items[postIdx].images.length > 1 && (
+                <button
+                  onClick={prevSlide}
+                  aria-label="Previous image"
+                  style={arrowStyle("left")}
+                >
+                  ‹
+                </button>
+              )}
+
+              {/* Right arrow */}
+              {items[postIdx].images.length > 1 && (
+                <button
+                  onClick={nextSlide}
+                  aria-label="Next image"
+                  style={arrowStyle("right")}
+                >
+                  ›
+                </button>
+              )}
+
+              {/* Close */}
+              <button
+                onClick={closeModal}
+                aria-label="Close"
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  border: "none",
+                  background: "rgba(0,0,0,0.6)",
+                  color: "white",
+                  width: 32,
+                  height: 32,
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 18,
                 }}
               >
-                {items[postIdx].images.map((_, idx) => (
-                  <span
-                    key={idx}
-                    onClick={() => setSlideIdx(idx)}
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 999,
-                      background:
-                        idx === slideIdx ? "white" : "rgba(255,255,255,0.4)",
-                      cursor: "pointer",
-                    }}
-                  />
-                ))}
+                ✕
+              </button>
+
+              {/* Dots */}
+              {items[postIdx].images.length > 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 10,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    display: "flex",
+                    gap: 6,
+                  }}
+                >
+                  {items[postIdx].images.map((_, idx) => (
+                    <span
+                      key={idx}
+                      onClick={() => setSlideIdx(idx)}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 999,
+                        background:
+                          idx === slideIdx ? "white" : "rgba(255,255,255,0.4)",
+                        cursor: "pointer",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Caption area (IG-like, minimal) */}
+            {(items[postIdx].title || items[postIdx].alt || items[postIdx].link) && (
+              <div
+                style={{
+                  padding: "12px 14px",
+                  color: "white",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  borderTop: "1px solid rgba(255,255,255,0.12)",
+                }}
+              >
+                {items[postIdx].title && (
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                    {items[postIdx].title}
+                  </div>
+                )}
+                {items[postIdx].alt && <div>{items[postIdx].alt}</div>}
+                {items[postIdx].link && (
+                  <div style={{ marginTop: 6 }}>
+                    <a
+                      href={items[postIdx].link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#93c5fd", textDecoration: "underline" }}
+                    >
+                      Open link
+                    </a>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -250,4 +282,6 @@ function arrowStyle(side: "left" | "right"): React.CSSProperties {
     fontSize: 28,
     lineHeight: 0.8 as any,
   };
+}
+
 }
