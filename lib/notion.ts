@@ -1,10 +1,15 @@
 import { Client } from "@notionhq/client";
 
-const notion = new Client({
-  auth: process.env.NOTION_TOKEN,
-});
+const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
-export async function getGalleryItems() {
+export type GalleryItem = {
+  id: string;
+  title: string;
+  link: string | null;
+  images: string[]; // <-- all images from the Media property
+};
+
+export async function getGalleryItems(): Promise<GalleryItem[]> {
   const databaseId = process.env.NOTION_DATABASE_ID!;
   const res = await notion.databases.query({
     database_id: databaseId,
@@ -15,14 +20,29 @@ export async function getGalleryItems() {
     sorts: [{ property: "Order", direction: "ascending" }],
   });
 
-  return res.results.map((page: any) => {
+  return (res.results as any[]).map((page) => {
+    const props = page.properties || {};
+
     const title =
-      page.properties?.Title?.title?.[0]?.plain_text ?? "Untitled";
-    const image =
-      page.properties?.Media?.files?.[0]?.file?.url ||
-      page.properties?.Media?.files?.[0]?.external?.url ||
-      null;
-    const link = page.properties?.Link?.url || null;
-    return { id: page.id, title, image, link };
+      props?.Title?.title?.[0]?.plain_text ??
+      (Array.isArray(props?.Title?.title)
+        ? props.Title.title.map((t: any) => t.plain_text).join("")
+        : "Untitled");
+
+    const link = props?.Link?.url ?? null;
+
+    // Collect ALL files in the Media property
+    const images: string[] = [];
+    const media = props?.Media;
+    if (media?.type === "files" && Array.isArray(media.files)) {
+      for (const f of media.files) {
+        const url =
+          f?.type === "external" ? f.external?.url : f?.file?.url ?? null;
+        if (url) images.push(url);
+      }
+    }
+
+    return { id: page.id, title, link, images };
   });
 }
+
