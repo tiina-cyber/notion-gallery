@@ -6,7 +6,8 @@ export type GalleryItem = {
   id: string;
   title: string;
   link: string | null;
-  images: string[]; // <-- all images from the Media property
+  images: string[];   // all images from Media
+  alt: string | null; // caption from Alt
 };
 
 export async function getGalleryItems(): Promise<GalleryItem[]> {
@@ -31,18 +32,27 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
 
     const link = props?.Link?.url ?? null;
 
-    // Collect ALL files in the Media property
+    // ALL images
     const images: string[] = [];
     const media = props?.Media;
     if (media?.type === "files" && Array.isArray(media.files)) {
       for (const f of media.files) {
-        const url =
-          f?.type === "external" ? f.external?.url : f?.file?.url ?? null;
+        const url = f?.type === "external" ? f.external?.url : f?.file?.url ?? null;
         if (url) images.push(url);
       }
     }
 
-    return { id: page.id, title, link, images };
+    // Alt (caption) — join all rich_text segments
+    const alt =
+      props?.Alt?.type === "rich_text"
+        ? (props.Alt.rich_text || [])
+            .map((t: any) => t.plain_text)
+            .join("")
+            .trim() || null
+        : null;
+
+    return { id: page.id, title, link, images, alt };
   });
 }
+
 
