@@ -8,6 +8,7 @@ export type GalleryItem = {
   link: string | null;
   alt: string | null;
   media: { type: "image" | "video" | "canva"; url: string }[];
+  thumb: string | null; // first image or Canva og:image
 };
 
 function isVideo(urlOrName: string): boolean {
@@ -17,11 +18,24 @@ function isVideo(urlOrName: string): boolean {
 
 function asCanvaEmbed(url: string): string {
   if (!/canva\.com\/design\//i.test(url)) return url;
-  // ensure ?embed is present so Canva loads in an iframe-friendly mode
-  const hasQuery = url.includes("?");
-  return url.includes("embed")
-    ? url
-    : url + (hasQuery ? "&embed" : "?embed");
+  return url.includes("?") ? (url.includes("embed") ? url : url + "&embed") : url + "?embed";
+}
+
+// server-side helper: fetch <meta property="og:image" ...> from a page
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { next: { revalidate: 86400 } }); // cache ~1 day
+    if (!res.ok) return null;
+    const html = await res.text();
+    // try og:image first
+    const og = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1];
+    if (og) return og;
+    // fallback to twitter:image
+    const tw = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1];
+    return tw ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getGalleryItems(): Promise<GalleryItem[]> {
@@ -32,7 +46,9 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
     sorts: [{ property: "Order", direction: "ascending" }],
   });
 
-  return (res.results as any[]).map((page) => {
+  // Build items
+  const items: GalleryItem[] = [];
+  for (const page of res.results as any[]) {
     const props = page.properties || {};
 
     const title =
@@ -48,8 +64,6 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
         : null;
 
     const media: { type: "image" | "video" | "canva"; url: string }[] = [];
-
-    // 1) Files & media: images, videos, or Canva links
     const m = props?.Media;
     if (m?.type === "files" && Array.isArray(m.files)) {
       for (const f of m.files) {
@@ -64,12 +78,21 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
       }
     }
 
-    // 2) Optional standalone Canva URL column
-    const canvaUrl = props?.Canva?.type === "url" ? props.Canva.url : null;
-    if (canvaUrl && /canva\.com\/design\//i.test(canvaUrl)) {
-      media.push({ type: "canva", url: asCanvaEmbed(canvaUrl) });
+    // Thumbnail preference:
+    // 1) first image in media
+    // 2) if none and there is a Canva slide, fetch og:image from that Canva URL
+    let thumb: string | null = media.find(x => x.type === "image")?.url ?? null;
+    if (!thumb) {
+      const canva = media.find(x => x.type === "canva");
+      if (canva) {
+        // use the non-embed URL to read meta tags (strip ?embed if present)
+        const canvaPageUrl = canva.url.replace(/([?&])embed\b/, "").replace(/\?$/, "");
+        thumb = await fetchOgImage(canvaPageUrl);
+      }
     }
 
-    return { id: page.id, title, link, alt, media };
-  });
+    items.push({ id: page.id, title, link, alt, media, thumb });
+  }
+
+  return items;
 }
