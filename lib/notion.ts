@@ -18,21 +18,52 @@ function isVideo(urlOrName: string): boolean {
 
 function asCanvaEmbed(url: string): string {
   if (!/canva\.com\/design\//i.test(url)) return url;
-  return url.includes("?") ? (url.includes("embed") ? url : url + "&embed") : url + "?embed";
+  return url.includes("?")
+    ? (/\bembed\b/.test(url) ? url : url + "&embed")
+    : url + "?embed";
 }
 
-// server-side helper: fetch <meta property="og:image" ...> from a page
-async function fetchOgImage(url: string): Promise<string | null> {
+function htmlDecode(s: string) {
+  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+// Server-side: fetch <meta ... og:image ...> (or twitter:image) from a Canva page.
+// We strip ?embed for scraping, add a browser-y UA, and cache for 1 day.
+async function fetchOgImage(canvaUrl: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { next: { revalidate: 86400 } }); // cache ~1 day
+    const urlForMeta = canvaUrl.replace(/([?&])embed\b/, "").replace(/\?$/, "");
+    const res = await fetch(urlForMeta, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      next: { revalidate: 86400 }, // ~1 day cache
+    });
     if (!res.ok) return null;
     const html = await res.text();
-    // try og:image first
-    const og = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1];
-    if (og) return og;
-    // fallback to twitter:image
-    const tw = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1];
-    return tw ?? null;
+
+    // Try several meta patterns
+    const candidates: (string | undefined)[] = [
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1],
+      html.match(/<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1],
+      html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1],
+    ];
+    let img = candidates.find(Boolean) || null;
+    if (!img) return null;
+
+    img = htmlDecode(img);
+
+    // Resolve protocol-relative //... to https://
+    if (img.startsWith("//")) img = "https:" + img;
+
+    // Resolve relative URLs against the page URL
+    if (/^\/[^/]/.test(img)) {
+      const base = new URL(urlForMeta);
+      img = new URL(img, base.origin).toString();
+    }
+
+    return img;
   } catch {
     return null;
   }
@@ -46,8 +77,8 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
     sorts: [{ property: "Order", direction: "ascending" }],
   });
 
-  // Build items
   const items: GalleryItem[] = [];
+
   for (const page of res.results as any[]) {
     const props = page.properties || {};
 
@@ -78,16 +109,12 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
       }
     }
 
-    // Thumbnail preference:
-    // 1) first image in media
-    // 2) if none and there is a Canva slide, fetch og:image from that Canva URL
-    let thumb: string | null = media.find(x => x.type === "image")?.url ?? null;
+    // Thumbnail: prefer first image in media; otherwise try Canva og:image
+    let thumb: string | null = media.find((x) => x.type === "image")?.url ?? null;
     if (!thumb) {
-      const canva = media.find(x => x.type === "canva");
+      const canva = media.find((x) => x.type === "canva");
       if (canva) {
-        // use the non-embed URL to read meta tags (strip ?embed if present)
-        const canvaPageUrl = canva.url.replace(/([?&])embed\b/, "").replace(/\?$/, "");
-        thumb = await fetchOgImage(canvaPageUrl);
+        thumb = await fetchOgImage(canva.url);
       }
     }
 
