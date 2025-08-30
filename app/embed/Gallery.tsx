@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 type Item = {
   id: string;
   title: string;
   link: string | null;
   images: string[];
-  alt: string | null; // <-- new
+  alt: string | null;
 };
 
 export default function Gallery({ items }: { items: Item[] }) {
@@ -127,7 +127,7 @@ export default function Gallery({ items }: { items: Item[] }) {
             zIndex: 9999,
           }}
         >
-          {/* Content column: image area (flex:1) + caption area below */}
+          {/* Content column: image area + caption below */}
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -282,6 +282,4 @@ function arrowStyle(side: "left" | "right"): React.CSSProperties {
     fontSize: 28,
     lineHeight: 0.8 as any,
   };
-}
-
 }
