@@ -6,18 +6,21 @@ export type GalleryItem = {
   id: string;
   title: string;
   link: string | null;
-  images: string[];   // all images from Media
-  alt: string | null; // caption from Alt
+  alt: string | null;
+  media: { type: "image" | "video"; url: string }[];
 };
+
+// naive extension check for videos
+function isVideo(urlOrName: string): boolean {
+  const u = urlOrName.toLowerCase().split("?")[0];
+  return u.endsWith(".mp4") || u.endsWith(".webm") || u.endsWith(".mov") || u.endsWith(".m4v");
+}
 
 export async function getGalleryItems(): Promise<GalleryItem[]> {
   const databaseId = process.env.NOTION_DATABASE_ID!;
   const res = await notion.databases.query({
     database_id: databaseId,
-    filter: {
-      property: "Visible",
-      checkbox: { equals: true },
-    },
+    filter: { property: "Visible", checkbox: { equals: true } },
     sorts: [{ property: "Order", direction: "ascending" }],
   });
 
@@ -25,34 +28,28 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
     const props = page.properties || {};
 
     const title =
-      props?.Title?.title?.[0]?.plain_text ??
-      (Array.isArray(props?.Title?.title)
-        ? props.Title.title.map((t: any) => t.plain_text).join("")
-        : "Untitled");
+      props?.Title?.type === "title"
+        ? (props.Title.title || []).map((t: any) => t.plain_text).join("") || "Untitled"
+        : "Untitled";
 
-    const link = props?.Link?.url ?? null;
+    const link = props?.Link?.type === "url" ? props.Link.url : null;
 
-    // ALL images
-    const images: string[] = [];
-    const media = props?.Media;
-    if (media?.type === "files" && Array.isArray(media.files)) {
-      for (const f of media.files) {
+    const alt =
+      props?.Alt?.type === "rich_text"
+        ? (props.Alt.rich_text || []).map((t: any) => t.plain_text).join("").trim() || null
+        : null;
+
+    const media: { type: "image" | "video"; url: string }[] = [];
+    const m = props?.Media;
+    if (m?.type === "files" && Array.isArray(m.files)) {
+      for (const f of m.files) {
+        const name = f.name || "";
         const url = f?.type === "external" ? f.external?.url : f?.file?.url ?? null;
-        if (url) images.push(url);
+        if (!url) continue;
+        media.push({ type: isVideo(name || url) ? "video" : "image", url });
       }
     }
 
-    // Alt (caption) — join all rich_text segments
-    const alt =
-      props?.Alt?.type === "rich_text"
-        ? (props.Alt.rich_text || [])
-            .map((t: any) => t.plain_text)
-            .join("")
-            .trim() || null
-        : null;
-
-    return { id: page.id, title, link, images, alt };
+    return { id: page.id, title, link, alt, media };
   });
 }
-
-
