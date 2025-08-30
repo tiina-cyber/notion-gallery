@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 
-type Media = { type: "image" | "video"; url: string };
+type Media = { type: "image" | "video" | "canva"; url: string };
 type Item = {
   id: string;
   title: string;
@@ -35,7 +35,7 @@ export default function Gallery({ items }: { items: Item[] }) {
     setSlideIdx((s) => (s - 1 + m.length) % m.length);
   }, [items, postIdx]);
 
-  // keyboard shortcuts
+  // Keyboard: Esc to close, arrows to navigate
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -71,10 +71,14 @@ export default function Gallery({ items }: { items: Item[] }) {
                 overflow: "hidden",
                 cursor: "pointer",
                 background: "#eee",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
               title={item.title}
               aria-label={item.title}
             >
+              {/* Thumbnail per media type */}
               {first ? (
                 first.type === "image" ? (
                   <img
@@ -90,8 +94,9 @@ export default function Gallery({ items }: { items: Item[] }) {
                       display: "block",
                     }}
                   />
-                ) : (
+                ) : first.type === "video" ? (
                   <>
+                    {/* Lightweight preview (no autoplay audio) */}
                     <video
                       src={first.url}
                       muted
@@ -107,20 +112,19 @@ export default function Gallery({ items }: { items: Item[] }) {
                         background: "black",
                       }}
                     />
+                    <Badge>▶ video</Badge>
+                  </>
+                ) : (
+                  // Canva placeholder (embed loads in modal)
+                  <>
                     <div
                       style={{
                         position: "absolute",
-                        right: 6,
-                        top: 6,
-                        fontSize: 12,
-                        background: "rgba(0,0,0,0.6)",
-                        color: "white",
-                        padding: "2px 6px",
-                        borderRadius: 4,
+                        inset: 0,
+                        background: "#111",
                       }}
-                    >
-                      ▶ video
-                    </div>
+                    />
+                    <Badge>Canva</Badge>
                   </>
                 )
               ) : null}
@@ -194,6 +198,20 @@ export default function Gallery({ items }: { items: Item[] }) {
                     background: "black",
                   }}
                 />
+              ) : items[postIdx].media[slideIdx]?.type === "canva" ? (
+                <iframe
+                  src={items[postIdx].media[slideIdx].url}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    background: "black",
+                  }}
+                  allow="fullscreen; clipboard-write"
+                  loading="lazy"
+                />
               ) : (
                 <img
                   src={items[postIdx].media[slideIdx]?.url}
@@ -209,13 +227,13 @@ export default function Gallery({ items }: { items: Item[] }) {
                 />
               )}
 
-              {/* Arrows */}
+              {/* Arrows (only if multiple slides) */}
               {items[postIdx].media.length > 1 && (
                 <>
-                  <button onClick={prevSlide} aria-label="Previous image" style={arrowStyle("left")}>
+                  <button onClick={prevSlide} aria-label="Previous" style={arrowStyle("left")}>
                     ‹
                   </button>
-                  <button onClick={nextSlide} aria-label="Next image" style={arrowStyle("right")}>
+                  <button onClick={nextSlide} aria-label="Next" style={arrowStyle("right")}>
                     ›
                   </button>
                 </>
@@ -289,6 +307,25 @@ export default function Gallery({ items }: { items: Item[] }) {
         </div>
       )}
     </>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        right: 6,
+        top: 6,
+        fontSize: 12,
+        background: "rgba(0,0,0,0.6)",
+        color: "white",
+        padding: "2px 6px",
+        borderRadius: 4,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
