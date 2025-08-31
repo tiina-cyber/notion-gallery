@@ -10,23 +10,41 @@ type Item = {
   media: Media[];
   thumb: string | null;   // first image in Media (thumbnail for grid)
   channels: string[];     // e.g., ["Instagram", "Tiktok"]
+  views: number | null;
+  engagements: number | null;
 };
 
-export default function Gallery({ items }: { items: Item[] }) {
-  // Channel filter
-  const [channel, setChannel] = useState<string>("");
+type SortKey = "" | "Views" | "Engagements";
 
+export default function Gallery({ items }: { items: Item[] }) {
+  // Filters & sorting
+  const [channel, setChannel] = useState<string>("");
+  const [sortBy, setSortBy] = useState<SortKey>("");
+
+  // Build unique channel list from data
   const allChannels = useMemo(() => {
     const s = new Set<string>();
     for (const it of items) for (const c of it.channels || []) s.add(c);
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [items]);
 
-  const visible = useMemo(() => {
+  // 1) Channel filter
+  const filtered = useMemo(() => {
     if (!channel) return items;
     const wanted = channel.toLowerCase();
     return items.filter((it) => (it.channels || []).some((c) => c.toLowerCase() === wanted));
   }, [items, channel]);
+
+  // 2) Sort (highest → lowest). Nulls go to the end.
+  const visible = useMemo(() => {
+    const arr = [...filtered];
+    if (sortBy === "Views") {
+      arr.sort((a, b) => (b.views ?? -Infinity) - (a.views ?? -Infinity));
+    } else if (sortBy === "Engagements") {
+      arr.sort((a, b) => (b.engagements ?? -Infinity) - (a.engagements ?? -Infinity));
+    }
+    return arr;
+  }, [filtered, sortBy]);
 
   // Modal state
   const [open, setOpen] = useState(false);
@@ -75,8 +93,16 @@ export default function Gallery({ items }: { items: Item[] }) {
 
   return (
     <main style={{ padding: 0, margin: 0 }}>
-      {/* Channel filter bar */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 8px 0" }}>
+      {/* Filter + Sort bar */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          padding: "8px 8px 0",
+          flexWrap: "wrap",
+        }}
+      >
         <label style={{ fontSize: 14, opacity: 0.8 }}>Channel:</label>
         <select
           value={channel}
@@ -97,8 +123,28 @@ export default function Gallery({ items }: { items: Item[] }) {
             </option>
           ))}
         </select>
+
+        <label style={{ fontSize: 14, opacity: 0.8, marginLeft: 10 }}>Sort:</label>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortKey)}
+          style={{
+            fontSize: 14,
+            padding: "6px 10px",
+            border: "1px solid rgba(0,0,0,0.15)",
+            background: "white",
+            borderRadius: 6,
+            outline: "none",
+          }}
+        >
+          <option value="">Default (Order)</option>
+          <option value="Views">Views (high → low)</option>
+          <option value="Engagements">Engagements (high → low)</option>
+        </select>
+
         <div style={{ fontSize: 12, opacity: 0.6 }}>
-          {channel ? `${visible.length} post${visible.length === 1 ? "" : "s"}` : `${items.length} post${items.length === 1 ? "" : "s"}`}
+          {channel ? `${visible.length} post${visible.length === 1 ? "" : "s"}`
+                   : `${visible.length} post${visible.length === 1 ? "" : "s"}`}
         </div>
       </div>
 
@@ -113,13 +159,15 @@ export default function Gallery({ items }: { items: Item[] }) {
       >
         {visible.length === 0 && (
           <div style={{ padding: 12, color: "rgba(0,0,0,0.6)", gridColumn: "1/-1", fontSize: 14 }}>
-            No posts for this channel yet.
+            No posts match the current filters.
           </div>
         )}
 
         {visible.map((item, i) => {
           const first = item.media[0];
           const hasThumb = !!item.thumb;
+
+          // What modal will show for this tile (to compute counter badge)
           const tileSlides = (() => {
             const hasCanva = item.media.some((m) => m.type === "canva");
             return hasCanva ? item.media.filter((m) => m.type === "canva") : item.media;
