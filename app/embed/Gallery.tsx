@@ -6,25 +6,22 @@ type Media = { type: "image" | "video" | "canva"; url: string };
 type Item = {
   id: string;
   title: string;
-  link: string | null;
   alt: string | null;
   media: Media[];
-  thumb: string | null;     // first image in Media (thumbnail for grid)
-  channels: string[];       // e.g., ["Instagram", "Tiktok"]
+  thumb: string | null;   // first image in Media (thumbnail for grid)
+  channels: string[];     // e.g., ["Instagram", "Tiktok"]
 };
 
 export default function Gallery({ items }: { items: Item[] }) {
-  // Selected channel ("" = All)
+  // Channel filter
   const [channel, setChannel] = useState<string>("");
 
-  // Build unique channel list from data
   const allChannels = useMemo(() => {
     const s = new Set<string>();
     for (const it of items) for (const c of it.channels || []) s.add(c);
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [items]);
 
-  // Visible items based on selected channel
   const visible = useMemo(() => {
     if (!channel) return items;
     const wanted = channel.toLowerCase();
@@ -36,7 +33,7 @@ export default function Gallery({ items }: { items: Item[] }) {
   const [postIdx, setPostIdx] = useState<number>(0);
   const [slideIdx, setSlideIdx] = useState<number>(0);
 
-  // Slides rule: if a post contains any Canva, show ONLY Canva slides in the modal.
+  // If a post has any Canva media, show ONLY Canva slides in modal; otherwise show all media
   const slidesFor = useCallback(
     (i: number): Media[] => {
       const m = visible[i]?.media ?? [];
@@ -65,7 +62,6 @@ export default function Gallery({ items }: { items: Item[] }) {
     setSlideIdx((s) => (s - 1 + slides.length) % slides.length);
   }, [slidesFor, postIdx]);
 
-  // Keyboard navigation within modal
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -80,14 +76,7 @@ export default function Gallery({ items }: { items: Item[] }) {
   return (
     <main style={{ padding: 0, margin: 0 }}>
       {/* Channel filter bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          padding: "8px 8px 0",
-        }}
-      >
+      <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 8px 0" }}>
         <label style={{ fontSize: 14, opacity: 0.8 }}>Channel:</label>
         <select
           value={channel}
@@ -109,8 +98,7 @@ export default function Gallery({ items }: { items: Item[] }) {
           ))}
         </select>
         <div style={{ fontSize: 12, opacity: 0.6 }}>
-          {channel ? `${visible.length} post${visible.length === 1 ? "" : "s"}`
-                   : `${items.length} post${items.length === 1 ? "" : "s"}`}
+          {channel ? `${visible.length} post${visible.length === 1 ? "" : "s"}` : `${items.length} post${items.length === 1 ? "" : "s"}`}
         </div>
       </div>
 
@@ -132,8 +120,6 @@ export default function Gallery({ items }: { items: Item[] }) {
         {visible.map((item, i) => {
           const first = item.media[0];
           const hasThumb = !!item.thumb;
-
-          // What modal will show for this tile (to compute counter badge)
           const tileSlides = (() => {
             const hasCanva = item.media.some((m) => m.type === "canva");
             return hasCanva ? item.media.filter((m) => m.type === "canva") : item.media;
@@ -157,7 +143,6 @@ export default function Gallery({ items }: { items: Item[] }) {
               title={item.title}
               aria-label={item.title}
             >
-              {/* Prefer thumbnail (first image in Media) */}
               {hasThumb ? (
                 <img
                   src={item.thumb as string}
@@ -192,7 +177,6 @@ export default function Gallery({ items }: { items: Item[] }) {
                 )
               ) : null}
 
-              {/* Mini counter for how many slides the modal will have */}
               {tileSlides.length > 1 && (
                 <div
                   style={{
@@ -226,14 +210,7 @@ export default function Gallery({ items }: { items: Item[] }) {
           onClick={closeModal}
           role="dialog"
           aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.8)",
-            display: "grid",
-            placeItems: "center",
-            zIndex: 9999,
-          }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "grid", placeItems: "center", zIndex: 9999 }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -257,7 +234,6 @@ export default function Gallery({ items }: { items: Item[] }) {
               slidesFor={slidesFor}
             />
 
-            {/* Alt caption only */}
             {visible[postIdx]?.alt && (
               <div
                 style={{
