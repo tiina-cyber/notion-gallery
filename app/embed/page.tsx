@@ -1,15 +1,13 @@
-import { getGalleryItems } from "../../lib/notion";
-import Gallery from "./Gallery";
+ import { getPosts } from "@/lib/notion";
+-import GalleryGrid from "@/components/GalleryGrid";
++import GalleryController from "@/components/GalleryController";
 
-export const dynamic = "force-dynamic";
-
-export default async function Embed() {
-  const items = await getGalleryItems();
-  return (
-    <main style={{ padding: 0, margin: 0 }}>
-      <Gallery items={items} />
-    </main>
-  );
-}
-
-
+ export default async function Page() {
+   const posts = await getPosts();
+   return (
+     <main className="mx-auto max-w-5xl px-4 py-6">
+-      <GalleryGrid posts={posts} />
++      <GalleryController posts={posts} />
+     </main>
+   );
+ }
