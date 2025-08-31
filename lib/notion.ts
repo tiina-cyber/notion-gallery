@@ -5,11 +5,10 @@ const notion = new Client({ auth: process.env.NOTION_TOKEN });
 export type GalleryItem = {
   id: string;
   title: string;
-  link: string | null;
   alt: string | null;
   media: { type: "image" | "video" | "canva"; url: string }[];
-  thumb: string | null;           // first image in Media (thumbnail for grid)
-  channels: string[];             // <-- NEW: multi-select names from Notion "Channel"
+  thumb: string | null;      // first image in Media (thumbnail for grid)
+  channels: string[];        // from Notion multi-select "Channel"
 };
 
 function isVideo(urlOrName: string): boolean {
@@ -42,8 +41,6 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
         ? (props.Title.title || []).map((t: any) => t.plain_text).join("") || "Untitled"
         : "Untitled";
 
-    const link = props?.Link?.type === "url" ? props.Link.url : null;
-
     const alt =
       props?.Alt?.type === "rich_text"
         ? (props.Alt.rich_text || []).map((t: any) => t.plain_text).join("").trim() || null
@@ -65,7 +62,7 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
       }
     }
 
-    // Thumbnail: first image in Media (so you can add a thumb alongside a Canva link)
+    // Thumbnail: first image in Media (lets you add a thumb alongside a Canva link)
     const thumb = media.find((x) => x.type === "image")?.url ?? null;
 
     // Channels from Notion multi-select "Channel"
@@ -76,7 +73,7 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
             .filter(Boolean)
         : [];
 
-    items.push({ id: page.id, title, link, alt, media, thumb, channels });
+    items.push({ id: page.id, title, alt, media, thumb, channels });
   }
 
   return items;
