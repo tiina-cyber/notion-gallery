@@ -1,8 +1,13 @@
-export default function Home() {
+import { getGalleryItems } from "../../lib/notion";
+import Gallery from "./Gallery";
+
+export const dynamic = "force-dynamic";
+
+export default async function Embed() {
+  const items = await getGalleryItems();
   return (
-    <main style={{ padding: "2rem" }}>
-      <h1>Notion Gallery</h1>
-      <p>Go to /embed to see the gallery.</p>
+    <main style={{ padding: 0, margin: 0 }}>
+      <Gallery items={items} />
     </main>
   );
 }
