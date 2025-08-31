@@ -9,6 +9,8 @@ export type GalleryItem = {
   media: { type: "image" | "video" | "canva"; url: string }[];
   thumb: string | null;      // first image in Media (thumbnail for grid)
   channels: string[];        // from Notion multi-select "Channel"
+  views: number | null;      // from Number property "Views"
+  engagements: number | null;// from Number property "Engagements"
 };
 
 function isVideo(urlOrName: string): boolean {
@@ -62,7 +64,7 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
       }
     }
 
-    // Thumbnail: first image in Media (lets you add a thumb alongside a Canva link)
+    // Thumbnail: first image in Media
     const thumb = media.find((x) => x.type === "image")?.url ?? null;
 
     // Channels from Notion multi-select "Channel"
@@ -73,7 +75,14 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
             .filter(Boolean)
         : [];
 
-    items.push({ id: page.id, title, alt, media, thumb, channels });
+    // Numbers
+    const views =
+      props?.Views?.type === "number" ? (props.Views.number ?? null) : null;
+
+    const engagements =
+      props?.Engagements?.type === "number" ? (props.Engagements.number ?? null) : null;
+
+    items.push({ id: page.id, title, alt, media, thumb, channels, views, engagements });
   }
 
   return items;
