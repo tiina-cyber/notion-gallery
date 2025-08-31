@@ -9,6 +9,7 @@ type Item = {
   link: string | null;
   alt: string | null;
   media: Media[];
+  thumb: string | null; // first image in Media
 };
 
 export default function Gallery({ items }: { items: Item[] }) {
@@ -16,11 +17,7 @@ export default function Gallery({ items }: { items: Item[] }) {
   const [postIdx, setPostIdx] = useState<number>(0);
   const [slideIdx, setSlideIdx] = useState<number>(0);
 
-  const openModal = (i: number) => {
-    setPostIdx(i);
-    setSlideIdx(0);
-    setOpen(true);
-  };
+  const openModal = (i: number) => { setPostIdx(i); setSlideIdx(0); setOpen(true); };
   const closeModal = () => setOpen(false);
 
   const nextSlide = useCallback(() => {
@@ -60,6 +57,8 @@ export default function Gallery({ items }: { items: Item[] }) {
       >
         {items.map((item, i) => {
           const first = item.media[0];
+          const hasThumb = !!item.thumb;
+
           const tile = (
             <div
               key={item.id}
@@ -78,8 +77,22 @@ export default function Gallery({ items }: { items: Item[] }) {
               title={item.title}
               aria-label={item.title}
             >
-              {/* Thumbnail per media type */}
-              {first ? (
+              {/* Prefer the explicit thumbnail (first image in Media) */}
+              {hasThumb ? (
+                <img
+                  src={item.thumb as string}
+                  alt={item.title || "Gallery thumbnail"}
+                  loading="lazy"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : first ? (
                 first.type === "image" ? (
                   <img
                     src={first.url}
@@ -96,7 +109,6 @@ export default function Gallery({ items }: { items: Item[] }) {
                   />
                 ) : first.type === "video" ? (
                   <>
-                    {/* Lightweight preview (no autoplay audio) */}
                     <video
                       src={first.url}
                       muted
@@ -115,7 +127,7 @@ export default function Gallery({ items }: { items: Item[] }) {
                     <Badge>▶ video</Badge>
                   </>
                 ) : (
-                  // Canva placeholder (embed loads in modal)
+                  // Canva (no image available): simple neutral placeholder
                   <>
                     <div
                       style={{
