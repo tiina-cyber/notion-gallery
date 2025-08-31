@@ -8,7 +8,8 @@ export type GalleryItem = {
   link: string | null;
   alt: string | null;
   media: { type: "image" | "video" | "canva"; url: string }[];
-  thumb: string | null; // first image in Media, if any
+  thumb: string | null;           // first image in Media (thumbnail for grid)
+  channels: string[];             // <-- NEW: multi-select names from Notion "Channel"
 };
 
 function isVideo(urlOrName: string): boolean {
@@ -64,10 +65,18 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
       }
     }
 
-    // Thumbnail: first image in Media (so you can add a thumb image alongside a Canva link)
+    // Thumbnail: first image in Media (so you can add a thumb alongside a Canva link)
     const thumb = media.find((x) => x.type === "image")?.url ?? null;
 
-    items.push({ id: page.id, title, link, alt, media, thumb });
+    // Channels from Notion multi-select "Channel"
+    const channels =
+      props?.Channel?.type === "multi_select"
+        ? (props.Channel.multi_select || [])
+            .map((o: any) => (o?.name || "").trim())
+            .filter(Boolean)
+        : [];
+
+    items.push({ id: page.id, title, link, alt, media, thumb, channels });
   }
 
   return items;
