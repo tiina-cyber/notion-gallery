@@ -9,7 +9,7 @@ type Item = {
   link: string | null;
   alt: string | null;
   media: Media[];
-  thumb: string | null; // first image in Media
+  thumb: string | null; // first image in Media (thumbnail for grid)
 };
 
 export default function Gallery({ items }: { items: Item[] }) {
@@ -17,20 +17,35 @@ export default function Gallery({ items }: { items: Item[] }) {
   const [postIdx, setPostIdx] = useState<number>(0);
   const [slideIdx, setSlideIdx] = useState<number>(0);
 
-  const openModal = (i: number) => { setPostIdx(i); setSlideIdx(0); setOpen(true); };
+  // Slides rule: if a post contains any Canva media, show ONLY Canva slides in the modal.
+  // Otherwise, show all media (images/videos).
+  const slidesFor = useCallback(
+    (i: number): Media[] => {
+      const m = items[i]?.media ?? [];
+      const hasCanva = m.some((x) => x.type === "canva");
+      return hasCanva ? m.filter((x) => x.type === "canva") : m;
+    },
+    [items]
+  );
+
+  const openModal = (i: number) => {
+    setPostIdx(i);
+    setSlideIdx(0);
+    setOpen(true);
+  };
   const closeModal = () => setOpen(false);
 
   const nextSlide = useCallback(() => {
-    const m = items[postIdx]?.media ?? [];
-    if (!m.length) return;
-    setSlideIdx((s) => (s + 1) % m.length);
-  }, [items, postIdx]);
+    const slides = slidesFor(postIdx);
+    if (!slides.length) return;
+    setSlideIdx((s) => (s + 1) % slides.length);
+  }, [slidesFor, postIdx]);
 
   const prevSlide = useCallback(() => {
-    const m = items[postIdx]?.media ?? [];
-    if (!m.length) return;
-    setSlideIdx((s) => (s - 1 + m.length) % m.length);
-  }, [items, postIdx]);
+    const slides = slidesFor(postIdx);
+    if (!slides.length) return;
+    setSlideIdx((s) => (s - 1 + slides.length) % slides.length);
+  }, [slidesFor, postIdx]);
 
   // Keyboard: Esc to close, arrows to navigate
   useEffect(() => {
@@ -58,6 +73,12 @@ export default function Gallery({ items }: { items: Item[] }) {
         {items.map((item, i) => {
           const first = item.media[0];
           const hasThumb = !!item.thumb;
+
+          // For the little counter badge on the tile, reflect how many slides the modal will show
+          const tileSlides = (() => {
+            const hasCanva = item.media.some((m) => m.type === "canva");
+            return hasCanva ? item.media.filter((m) => m.type === "canva") : item.media;
+          })();
 
           const tile = (
             <div
@@ -127,7 +148,7 @@ export default function Gallery({ items }: { items: Item[] }) {
                     <Badge>▶ video</Badge>
                   </>
                 ) : (
-                  // Canva (no image available): simple neutral placeholder
+                  // Canva (no thumb image available): neutral placeholder
                   <>
                     <div
                       style={{
@@ -141,8 +162,8 @@ export default function Gallery({ items }: { items: Item[] }) {
                 )
               ) : null}
 
-              {/* tiny carousel indicator if multiple */}
-              {item.media.length > 1 && (
+              {/* Tiny indicator: how many slides the modal will show */}
+              {tileSlides.length > 1 && (
                 <div
                   style={{
                     position: "absolute",
@@ -155,13 +176,17 @@ export default function Gallery({ items }: { items: Item[] }) {
                     borderRadius: 4,
                   }}
                 >
-                  {item.media.length} ▶
+                  {tileSlides.length} ▶
                 </div>
               )}
             </div>
           );
 
-          return <span key={item.id} style={{ display: "block" }}>{tile}</span>;
+          return (
+            <span key={item.id} style={{ display: "block" }}>
+              {tile}
+            </span>
+          );
         })}
       </div>
 
@@ -193,113 +218,15 @@ export default function Gallery({ items }: { items: Item[] }) {
             }}
           >
             {/* Media area */}
-            <div style={{ position: "relative", flex: 1 }}>
-              {items[postIdx].media[slideIdx]?.type === "video" ? (
-                <video
-                  key={items[postIdx].media[slideIdx].url} // reset playback when slide changes
-                  src={items[postIdx].media[slideIdx].url}
-                  controls
-                  autoPlay
-                  playsInline
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    background: "black",
-                  }}
-                />
-              ) : items[postIdx].media[slideIdx]?.type === "canva" ? (
-                <iframe
-                  src={items[postIdx].media[slideIdx].url}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    border: "none",
-                    background: "black",
-                  }}
-                  allow="fullscreen; clipboard-write"
-                  loading="lazy"
-                />
-              ) : (
-                <img
-                  src={items[postIdx].media[slideIdx]?.url}
-                  alt={items[postIdx].title || "Image"}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    background: "black",
-                  }}
-                />
-              )}
-
-              {/* Arrows (only if multiple slides) */}
-              {items[postIdx].media.length > 1 && (
-                <>
-                  <button onClick={prevSlide} aria-label="Previous" style={arrowStyle("left")}>
-                    ‹
-                  </button>
-                  <button onClick={nextSlide} aria-label="Next" style={arrowStyle("right")}>
-                    ›
-                  </button>
-                </>
-              )}
-
-              {/* Close */}
-              <button
-                onClick={closeModal}
-                aria-label="Close"
-                style={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  border: "none",
-                  background: "rgba(0,0,0,0.6)",
-                  color: "white",
-                  width: 32,
-                  height: 32,
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 18,
-                }}
-              >
-                ✕
-              </button>
-
-              {/* Dots */}
-              {items[postIdx].media.length > 1 && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: 10,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    display: "flex",
-                    gap: 6,
-                  }}
-                >
-                  {items[postIdx].media.map((_, idx) => (
-                    <span
-                      key={idx}
-                      onClick={() => setSlideIdx(idx)}
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 999,
-                        background: idx === slideIdx ? "white" : "rgba(255,255,255,0.4)",
-                        cursor: "pointer",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <ModalSlides
+              items={items}
+              postIdx={postIdx}
+              slideIdx={slideIdx}
+              setSlideIdx={setSlideIdx}
+              nextSlide={nextSlide}
+              prevSlide={prevSlide}
+              slidesFor={slidesFor}
+            />
 
             {/* Alt caption only */}
             {items[postIdx].alt && (
@@ -319,6 +246,116 @@ export default function Gallery({ items }: { items: Item[] }) {
         </div>
       )}
     </>
+  );
+}
+
+function ModalSlides({
+  items,
+  postIdx,
+  slideIdx,
+  setSlideIdx,
+  nextSlide,
+  prevSlide,
+  slidesFor,
+}: {
+  items: Item[];
+  postIdx: number;
+  slideIdx: number;
+  setSlideIdx: (n: number) => void;
+  nextSlide: () => void;
+  prevSlide: () => void;
+  slidesFor: (i: number) => Media[];
+}) {
+  const slides = slidesFor(postIdx);
+  const cur = slides[slideIdx];
+
+  return (
+    <div style={{ position: "relative", flex: 1 }}>
+      {cur?.type === "video" ? (
+        <video
+          key={cur.url} // reset playback when slide changes
+          src={cur.url}
+          controls
+          autoPlay
+          playsInline
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            background: "black",
+          }}
+        />
+      ) : cur?.type === "canva" ? (
+        <iframe
+          src={cur.url}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            border: "none",
+            background: "black",
+          }}
+          allow="fullscreen; clipboard-write"
+          loading="lazy"
+        />
+      ) : (
+        <img
+          src={cur?.url}
+          alt={"Image"}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            background: "black",
+          }}
+        />
+      )}
+
+      {/* Arrows (only if multiple slides) */}
+      {slides.length > 1 && (
+        <>
+          <button onClick={prevSlide} aria-label="Previous" style={arrowStyle("left")}>
+            ‹
+          </button>
+          <button onClick={nextSlide} aria-label="Next" style={arrowStyle("right")}>
+            ›
+          </button>
+        </>
+      )}
+
+      {/* Dots */}
+      {slides.length > 1 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 10,
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            gap: 6,
+          }}
+        >
+          {slides.map((_, idx) => (
+            <span
+              key={idx}
+              onClick={() => setSlideIdx(idx)}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                background: idx === slideIdx ? "white" : "rgba(255,255,255,0.4)",
+                cursor: "pointer",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
