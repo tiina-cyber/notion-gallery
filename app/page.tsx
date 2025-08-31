@@ -1,13 +1,10 @@
-import { getGalleryItems } from "../../lib/notion";
-import Gallery from "./Gallery";
-
-export const dynamic = "force-dynamic";
-
-export default async function Embed() {
-  const items = await getGalleryItems();
+export default function Page() {
   return (
-    <main style={{ padding: 0, margin: 0 }}>
-      <Gallery items={items} />
+    <main style={{ padding: 20 }}>
+      <h1>Notion Gallery Widget</h1>
+      <p>
+        The embed lives at <code>/embed</code>. Open that path (or paste it into a Notion Embed block).
+      </p>
     </main>
   );
 }
